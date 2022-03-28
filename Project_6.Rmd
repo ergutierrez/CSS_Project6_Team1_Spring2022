@@ -92,10 +92,78 @@ Select covariates that you think best represent the "true" model predicting whet
 
 ```{r}
 # Select covariates that represent the "true" model for selection, fit model
+df = ypsps %>% 
+  select(college, student_GPA, student_Knowledge, student_NextSch, student_SchClub, student_Newspaper, parent_EducHH, parent_Employ, parent_Knowledge, parent_HHInc, parent_Newspaper)
+
+model_ps <- glm(college ~ student_GPA + student_Knowledge + student_NextSch + student_SchClub + student_Newspaper + parent_EducHH + parent_Employ + parent_Knowledge + parent_HHInc + parent_Newspaper, family = binomial(), data = df)
+summary(model_ps)
+
+df <- df %>% mutate(prop_score = predict(model_ps))
 
 # Plot the balance for the top 10 covariates
+ggplot(df, aes(x = student_GPA, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) +
+  labs(title = "Distribution of Student GPA among Treated and Untreated", fill = "A\n")
 
-# Report the overall balance and the proportion of covariates that meet the balance threshold
+ggplot(df, aes(x = student_Knowledge, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) +
+  labs(title = "Distribution of Student Knowledge among Treated and Untreated", fill = "A\n")
+
+ggplot(df, aes(x = student_NextSch, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) +
+  labs(title = "Distribution of Student Next School Year Plans among Treated and Untreated", fill = "A\n")
+
+ggplot(df, aes(x = student_SchClub, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) +
+  labs(title = "Distribution of Student Attendance to School Clubs among Treated and Untreated", fill = "A\n")
+
+ggplot(df, aes(x = student_Newspaper, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) + 
+  labs(title = "Distribution of student_Newspaper among Treated and Untreated", fill = "A\n")
+
+ggplot(df, aes(x = parent_EducHH, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) + 
+  labs(title = "Distribution of Parents' Household Education Level among Treated and Untreated", fill = "A\n")
+
+ggplot(df, aes(x = parent_Employ, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) +
+  labs(title = "Distribution of Parental Employment among Treated and Untreated", fill = "A\n")
+
+ggplot(df, aes(x = parent_Knowledge, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) + 
+  labs(title = "Distribution of Parental Knowledge among Treated and Untreated", fill = "A\n")
+
+ggplot(df, aes(x = parent_HHInc, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) +
+  labs(title = "Distribution of Parents' Household Income among Treated and Untreated", fill = "A\n")
+
+ggplot(df, aes(x = parent_Newspaper, fill = factor(college))) + 
+  geom_bar() +
+  facet_grid(college~.) +
+  labs(title = "Distribution of parent_Newspaper among Treated and Untreated", fill = "A\n")
+
+# Report the overall balance
+ggplot(df, aes(x = prop_score, fill = factor(college))) + 
+  geom_histogram() 
+  labs(title = "Distribution of Propensity Score among Treated and Untreated")
+
+# Report the proportion of covariates that meet the balance threshold
+model_matchit <- matchit(college ~ student_GPA + student_Knowledge + student_NextSch + student_SchClub + student_Newspaper + parent_EducHH + parent_Employ + parent_Knowledge + parent_HHInc + parent_Newspaper,
+                        data = df,
+                        replace = TRUE)
+summary(model_matchit)
+plot(summary(model_matchit), threshold = 0.1)
+
+
 ```
 
 ## Simulations
@@ -113,11 +181,34 @@ Henderson/Chatfield argue that an improperly specified propensity score model ca
 
 ```{r}
 # Remove post-treatment covariates
+df2 <- ypsps %>% select(!contains("1973") & !contains("1982") & !"interviewid" & !"college")
 
 # Randomly select features
+dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=TRUE)
+college <- ypsps %>% select(college)
 
+df3 <- cbind(college, dfSIM)
+
+#I am not sure how to regress the dependent variable on "randomized" features here, so I'm stuck for now..    
+model_matchit <- matchit(college ~ dfSIM,
+                        data = df3, 
+                        estimand = "ATT",
+                        replace = TRUE)
 # Simulate random selection of features 10k+ times
 
+
+
+for (sim_num in 1:10000) {
+  
+    dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=TRUE)
+    df3 <- cbind(ypsps[college], dfSIM)
+    
+    model_matchit <- matchit(college ~ colnames(dfSIM),
+                        data = df3, 
+                        estimand = "ATT",
+                        replace = TRUE)
+
+}
 # Fit p-score models and save ATTs, proportion of balanced covariates, and mean percent balance improvement
 
 # Plot ATT v. proportion
