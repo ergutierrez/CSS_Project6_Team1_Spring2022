@@ -184,19 +184,19 @@ Henderson/Chatfield argue that an improperly specified propensity score model ca
 df2 <- ypsps %>% select(!contains("1973") & !contains("1982") & !"interviewid" & !"college")
 
 # Randomly select features
-dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=TRUE)
+dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=FALSE) # Solis: I changed this to replace=FALSE, I don't think it works if the same covariates are repeated
 college <- ypsps %>% select(college)
 
 df3 <- cbind(college, dfSIM)
 
 #I am not sure how to regress the dependent variable on "randomized" features here, so I'm stuck for now..    
-model_matchit <- matchit(college ~ dfSIM,
+# Solis: I think you can use the "." to regress on all other covariates except the independent variable. Which should be whatever the randomized features are
+model_matchit <- matchit(college ~ .,
                         data = df3, 
                         estimand = "ATT",
                         replace = TRUE)
+
 # Simulate random selection of features 10k+ times
-
-
 
 for (sim_num in 1:10000) {
   
@@ -237,11 +237,22 @@ Henderson/Chatfield propose using genetic matching to learn the best weights for
 ```{r}
 # Remove post-treatment covariates
 
-# Randomly select features
+
+
 
 # Simulate random selection of features 10k+ times
+for (sim_num in 1:10000) {
+
+# Randomly select features
+dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=TRUE)
+df3 <- cbind(college, dfSIM)
 
 # Fit  models and save ATTs, proportion of balanced covariates, and mean percent balance improvement
+model_matchit <- matchit(college ~ colnames(dfSIM),
+                        data = df3, 
+                        estimand = "ATT",
+                        replace = TRUE)
+}
 
 # Plot ATT v. proportion
 
