@@ -76,6 +76,7 @@ for (iter_num in 1:10000) {  # create for loop to repeat the three steps above
 
 ggplot() + 
   geom_histogram(aes(distr_vec))
+
 ```
 
 ## Questions
@@ -163,7 +164,6 @@ model_matchit <- matchit(college ~ student_GPA + student_Knowledge + student_Nex
 summary(model_matchit)
 plot(summary(model_matchit), threshold = 0.1)
 
-
 ```
 
 ## Simulations
@@ -187,12 +187,13 @@ df2 <- ypsps %>% select(!contains("1973") & !contains("1982") & !"interviewid" &
 dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=FALSE) # Solis: I changed this to replace=FALSE, I don't think it works if the same covariates are repeated
 college <- ypsps %>% select(college)
 
-df3 <- cbind(college, dfSIM)
+df3 <- cbind(college, dfSIM) 
+df3.complete <- df3 %>% filter(complete.cases(.)) # keep only nonmissing
 
 #I am not sure how to regress the dependent variable on "randomized" features here, so I'm stuck for now..    
 # Solis: I think you can use the "." to regress on all other covariates except the independent variable. Which should be whatever the randomized features are
 model_matchit <- matchit(college ~ .,
-                        data = df3, 
+                        data = df3.complete, 
                         estimand = "ATT",
                         replace = TRUE)
 
@@ -200,13 +201,19 @@ model_matchit <- matchit(college ~ .,
 
 for (sim_num in 1:10000) {
   
-    dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=TRUE)
-    df3 <- cbind(ypsps[college], dfSIM)
-    
-    model_matchit <- matchit(college ~ colnames(dfSIM),
-                        data = df3, 
+    dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=FALSE)
+    df3 <- cbind(college, dfSIM)
+    df3.complete <- df3 %>% filter(complete.cases(.)) # keep only nonmissing
+
+    psm_matchit <- matchit(college ~ .,
+                        data = df3.complete, 
                         estimand = "ATT",
                         replace = TRUE)
+    
+    psm_ate_data <- match.data(psm_matchit)
+    lm_exact_ate <- lm(college ~ ., data = psm_ate_data, weights = weights)
+    lm_exact_ate_summ <- summary(lm_exact_ate)
+    lm_exact_ate_summ
 
 }
 # Fit p-score models and save ATTs, proportion of balanced covariates, and mean percent balance improvement
