@@ -212,6 +212,10 @@ cov <- ypsps %>% select(!contains("1973") & !contains("1982") & !"interviewid" &
 # Keep complete cases only; matchit won't run with missing covariate data 
 ypsps <- ypsps %>% filter(complete.cases(.))
 
+# Create empty matrix to populate ATTs, proportion of balanced covariates, and mean percent balance improvement
+model.output <- matrix( , nrow = 10000, ncol = 3)
+names(model.output) <- c("ATT", "Prop Balanced Covariates", "Mean Percent Balance Improvement")
+
 for (sim_num in 1:10000) {
   
   # Randomly select features
@@ -236,11 +240,12 @@ for (sim_num in 1:10000) {
     ps_att_summ <- summary(ps_att)
     ps_att_summ
 
-    ATT_ps <- ps_att_summ$coefficients["college", "Estimate"]
-    ATT_ps
+    model.output[num_sim, 1] <- ps_att_summ$coefficients["college", "Estimate"]
+    model.output[num_sim, 2] <- # need to add code to get the proportion of balanced covariates
+    model.output[num_sim, 3] <- # need to add code to get the mean percent balance improvement
 
+    
 }
-# Fit p-score models and save ATTs, proportion of balanced covariates, and mean percent balance improvement
 
 # Plot ATT v. proportion
 
