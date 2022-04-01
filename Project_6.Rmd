@@ -29,6 +29,9 @@ library(MatchIt)
 # Load ypsps data
 ypsps <- read_csv('data/ypsps.csv')
 head(ypsps)
+
+#Remove variables used to create the outcome
+ypsps <- ypsps %>% select(!c(student_vote, student_button, student_money, student_meeting, student_communicate, student_demonstrate, student_community, student_other))
 ```
 
 # Randomization
@@ -93,7 +96,7 @@ Select covariates that you think best represent the "true" model predicting whet
 
 ```{r}
 # Select covariates that represent the "true" model for selection, fit model
-df = ypsps %>% 
+df <-  ypsps %>% 
   select(college, student_GPA, student_Knowledge, student_NextSch, student_SchClub, student_Newspaper, parent_EducHH, parent_Employ, parent_Knowledge, parent_HHInc, parent_Newspaper)
 
 model_ps <- glm(college ~ student_GPA + student_Knowledge + student_NextSch + student_SchClub + student_Newspaper + parent_EducHH + parent_Employ + parent_Knowledge + parent_HHInc + parent_Newspaper, family = binomial(), data = df)
@@ -193,27 +196,48 @@ df3.complete <- df3 %>% filter(complete.cases(.)) # keep only nonmissing
 #I am not sure how to regress the dependent variable on "randomized" features here, so I'm stuck for now..    
 # Solis: I think you can use the "." to regress on all other covariates except the independent variable. Which should be whatever the randomized features are
 model_matchit <- matchit(college ~ .,
-                        data = df3.complete, 
+                        data = df3, 
                         estimand = "ATT",
                         replace = TRUE)
+```
+
+```{r}
+# Solis: I made some edits to the simulation, I think it should be something like this??
 
 # Simulate random selection of features 10k+ times
 
+# Remove post-treatment covariates
+cov <- ypsps %>% select(!contains("1973") & !contains("1982") & !"interviewid" & !"college")
+
+# Keep complete cases only; matchit won't run with missing covariate data 
+ypsps <- ypsps %>% filter(complete.cases(.))
+
 for (sim_num in 1:10000) {
   
-    dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=FALSE)
-    df3 <- cbind(college, dfSIM)
-    df3.complete <- df3 %>% filter(complete.cases(.)) # keep only nonmissing
+  # Randomly select features
+    cov.rand <- sample(cov, size = sample(1:ncol(cov)), replace=FALSE)    
 
-    psm_matchit <- matchit(college ~ .,
-                        data = df3.complete, 
+  # Fit p-score models
+    ps.model <- paste("college ~", paste(names(cov.rand), collapse=" + "))
+    psm_matchit <- matchit(formula(ps.model),
+                        data = ypsps, 
+                        method="nearest", 
+                        distance="glm",
+                        link="logit",
                         estimand = "ATT",
                         replace = TRUE)
     
-    psm_ate_data <- match.data(psm_matchit)
-    lm_exact_ate <- lm(college ~ ., data = psm_ate_data, weights = weights)
-    lm_exact_ate_summ <- summary(lm_exact_ate)
-    lm_exact_ate_summ
+    summary(psm_matchit)
+    
+  # Save ATTs, proportion of balanced covariates, and mean percent balance improvement
+    psm_att_data <- match.data(psm_matchit)
+    outcome.model <- paste("student_ppnscal ~ college +", paste(names(cov.rand), collapse=" + "))
+    ps_att <- lm(formula(outcome.model), data = psm_att_data, weights = weights)
+    ps_att_summ <- summary(ps_att)
+    ps_att_summ
+
+    ATT_ps <- ps_att_summ$coefficients["college", "Estimate"]
+    ATT_ps
 
 }
 # Fit p-score models and save ATTs, proportion of balanced covariates, and mean percent balance improvement
