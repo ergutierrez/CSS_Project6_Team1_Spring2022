@@ -356,6 +356,7 @@ geom_point(aes(x=ATT.optimal, y=balanced.cov.optimal))
     \item \textbf{Your Answer:}
 \end{enumerate}
 
+
 \textbf{Optional:} Looking ahead to the discussion questions, you may choose to model the propensity score using an algorithm other than logistic regression and perform these simulations again, if you wish to explore the second discussion question further.
 
 # Discussion Questions
