@@ -25,6 +25,7 @@ Otherwise, we also have covariates measured for survey responses to various ques
 # Feel free to load other libraries as you wish
 library(tidyverse)
 library(MatchIt)
+library(cobalt)
 
 # Load ypsps data
 ypsps <- read_csv('data/ypsps.csv')
@@ -46,40 +47,58 @@ Matching is usually used in observational studies to to approximate random assig
 \end{enumerate}
 
 ```{r}
+# Set seed
+set.seed(2459)
+
 # Generate a vector that randomly assigns each unit to treatment/control
 rdm_vtr <- sample(0:1, size = nrow(ypsps), replace = TRUE, prob = c(0.5,0.5))
 ## 0 = treatment and 1 = control group
 
-# Choose a baseline covariate (use dplyr for this)
-## create temp df that keeps covariate (student_money) and adds random vector from above
-temp_df = ypsps %>% 
+# Choose a baseline covariate
+temp_df <-  ypsps %>% 
   select(student_money) %>% ## 1 = college and 0 = no college
-  mutate(rdm_vtr)
+  mutate(random_assignment = rdm_vtr) %>% 
+  group_by(student_money, random_assignment)
 
 # Visualize the distribution by treatment/control (ggplot)
-ggplot(temp_df, aes(x = student_money, fill = factor(rdm_vtr))) +
-  geom_bar() +
-  facet_grid(rdm_vtr~.) +
-  labs(title = "Distribution of Student Donations", fill = "Random \nassignment\n")
+ggplot(temp_df) +
+  geom_bar(aes(x=student_money, 
+                  fill = factor(random_assignment)),
+       position = 'dodge') +
+      labs(title = "Distribution of Student Donations", fill = "Random \nassignment\n") +
+     xlab("Student Donations")
 
 # Simulate this 10,000 times (monte carlo simulation - see R Refresher for a hint)
-distr_vec <- vector()  # create empty vector to append distributions across simulations
+nsim = 10000
 
-for (iter_num in 1:10000) {  # create for loop to repeat the three steps above
+prop.treat1.list <- rep(NA, nsim)  # create empty vector to append distributions across simulations - covariate=1
+prop.treat0.list <- rep(NA, nsim)  # create empty vector to append distributions across simulations  - covariate=0
+
+for (iter_num in 1:nsim) {  # create for loop to repeat the three steps above
+  
+  # Generate a vector that randomly assigns each unit to treatment/control
    rdm_vtr <- sample(0:1, size = nrow(ypsps), replace = TRUE, prob = c(0.5,0.5))
    
-   temp_df = ypsps %>% 
+  # Create temp df that keeps covariate (student_money) and adds random vector from above
+   temp_df <-  ypsps %>% 
      select(student_money) %>% ## 1 = college and 0 = no college
-     mutate(rdm_vtr)
+     mutate(random_assignment = rdm_vtr)
+  
+   # Calculate proportion treated when covariate = 1 and when covariate = 0 
+   prop.treat1 <- (temp_df %>% filter(student_money==1 & random_assignment==1) %>% nrow())/(temp_df %>% filter(student_money==1) %>% nrow())
    
-   distr_vec <- c(distr_vec, 
-                  (sum(temp_df[which(temp_df$rdm_vtr==1), 1]) / nrow(temp_df))
-                  ) # get distribution of donations among treated (ie, rdm_vtr==1)
+   prop.treat0 <- (temp_df %>% filter(student_money==0 & random_assignment==1) %>% nrow())/(temp_df %>% filter(student_money==0) %>% nrow())
+
+  # Save proportions in list
+  prop.treat1.list[iter_num] <- prop.treat1
+  prop.treat0.list[iter_num] <- prop.treat0
 }
 
 ggplot() + 
-  geom_histogram(aes(distr_vec))
+  geom_histogram(aes(prop.treat1.list))
 
+ggplot() + 
+  geom_histogram(aes(prop.treat0.list))
 ```
 
 ## Questions
@@ -97,14 +116,33 @@ Select covariates that you think best represent the "true" model predicting whet
 ```{r}
 # Select covariates that represent the "true" model for selection, fit model
 df <-  ypsps %>% 
-  select(college, student_GPA, student_Knowledge, student_NextSch, student_SchClub, student_Newspaper, parent_EducHH, parent_Employ, parent_Knowledge, parent_HHInc, parent_Newspaper)
+  select(student_ppnscal, college, student_GPA, student_Knowledge, student_NextSch, student_SchClub, student_Newspaper, parent_EducHH, parent_Employ, parent_Knowledge, parent_HHInc, parent_Newspaper)
 
 model_ps <- glm(college ~ student_GPA + student_Knowledge + student_NextSch + student_SchClub + student_Newspaper + parent_EducHH + parent_Employ + parent_Knowledge + parent_HHInc + parent_Newspaper, family = binomial(), data = df)
 summary(model_ps)
 
-df <- df %>% mutate(prop_score = predict(model_ps))
+# PSM
+model_matchit <- matchit(formula(model_ps),
+                        data = df, 
+                        method="nearest", 
+                        distance="glm",
+                        link="logit",
+                        estimand = "ATT",
+                        replace = TRUE)
+
+# ATT
+outcome.model <- glm(student_ppnscal ~ ., data = df)
+summary(outcome.model)$coefficients["college", "Estimate"]
 
 # Plot the balance for the top 10 covariates
+plot(summary(model_matchit), threshold = 0.1, main = "Balance plot for top 10 covariates")
+
+# Report the balance across treatment and controls
+balance_table_full <- bal.tab(model_matchit, thresholds = .1)
+balance_table_full
+table(balance_table_full$Balance[-1, "M.Threshold"])["Balanced, <0.1"]  # 5 out of 10
+
+# KQ said we don't need to include these graphs, just the one above. So we can probably delete
 ggplot(df, aes(x = student_GPA, fill = factor(college))) + 
   geom_bar() +
   facet_grid(college~.) +
@@ -154,19 +192,6 @@ ggplot(df, aes(x = parent_Newspaper, fill = factor(college))) +
   geom_bar() +
   facet_grid(college~.) +
   labs(title = "Distribution of parent_Newspaper among Treated and Untreated", fill = "A\n")
-
-# Report the overall balance
-ggplot(df, aes(x = prop_score, fill = factor(college))) + 
-  geom_histogram() 
-  labs(title = "Distribution of Propensity Score among Treated and Untreated")
-
-# Report the proportion of covariates that meet the balance threshold
-model_matchit <- matchit(college ~ student_GPA + student_Knowledge + student_NextSch + student_SchClub + student_Newspaper + parent_EducHH + parent_Employ + parent_Knowledge + parent_HHInc + parent_Newspaper,
-                        data = df,
-                        replace = TRUE)
-summary(model_matchit)
-plot(summary(model_matchit), threshold = 0.1)
-
 ```
 
 ## Simulations
@@ -183,40 +208,23 @@ Henderson/Chatfield argue that an improperly specified propensity score model ca
 \textbf{Note: There are lots of post-treatment covariates in this dataset (about 50!)! You need to be careful not to include these in the pre-treatment balancing. Many of you are probably used to selecting or dropping columns manually, or positionally. However, you may not always have a convenient arrangement of columns, nor is it fun to type out 50 different column names. Instead see if you can use dplyr 1.0.0 functions to programatically drop post-treatment variables (\href{https://www.tidyverse.org/blog/2020/03/dplyr-1-0-0-select-rename-relocate/}{here} is a useful tutorial).}
 
 ```{r}
-# Remove post-treatment covariates
-df2 <- ypsps %>% select(!contains("1973") & !contains("1982") & !"interviewid" & !"college")
-
-# Randomly select features
-dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=FALSE) # Solis: I changed this to replace=FALSE, I don't think it works if the same covariates are repeated
-college <- ypsps %>% select(college)
-
-df3 <- cbind(college, dfSIM) 
-df3.complete <- df3 %>% filter(complete.cases(.)) # keep only nonmissing
-
-#I am not sure how to regress the dependent variable on "randomized" features here, so I'm stuck for now..    
-# Solis: I think you can use the "." to regress on all other covariates except the independent variable. Which should be whatever the randomized features are
-model_matchit <- matchit(college ~ .,
-                        data = df3, 
-                        estimand = "ATT",
-                        replace = TRUE)
-```
-
-```{r}
-# Solis: I made some edits to the simulation, I think it should be something like this??
-
 # Simulate random selection of features 10k+ times
+
+# Drop columns with missing values
+ypsps <- ypsps %>% select(-colnames(ypsps)[colSums(is.na(ypsps))>0])
 
 # Remove post-treatment covariates
 cov <- ypsps %>% select(!contains("1973") & !contains("1982") & !"interviewid" & !"college")
 
-# Keep complete cases only; matchit won't run with missing covariate data 
-ypsps <- ypsps %>% filter(complete.cases(.))
+# Create empty vectors to populate ATTs, proportion of balanced covariates, and mean percent balance improvement
+ATT = rep(NA, nsim)
+balanced.cov = rep(NA, nsim)
+balance.improvement = rep(NA, nsim)
 
-# Create empty matrix to populate ATTs, proportion of balanced covariates, and mean percent balance improvement
-model.output <- matrix( , nrow = 10000, ncol = 3)
-names(model.output) <- c("ATT", "Prop Balanced Covariates", "Mean Percent Balance Improvement")
+# create vector of 10 random numbers from 1 to 10000
+rand.num <- sample(1:nsim, 10) 
 
-for (sim_num in 1:10000) {
+for (i in 1:nsim) {
   
   # Randomly select features
     cov.rand <- sample(cov, size = sample(1:ncol(cov)), replace=FALSE)    
@@ -231,26 +239,37 @@ for (sim_num in 1:10000) {
                         estimand = "ATT",
                         replace = TRUE)
     
-    summary(psm_matchit)
-    
+    psm_matchit.sum <- summary(psm_matchit)
+
   # Save ATTs, proportion of balanced covariates, and mean percent balance improvement
     psm_att_data <- match.data(psm_matchit)
     outcome.model <- paste("student_ppnscal ~ college +", paste(names(cov.rand), collapse=" + "))
     ps_att <- lm(formula(outcome.model), data = psm_att_data, weights = weights)
     ps_att_summ <- summary(ps_att)
-    ps_att_summ
 
-    model.output[num_sim, 1] <- ps_att_summ$coefficients["college", "Estimate"]
-    model.output[num_sim, 2] <- # need to add code to get the proportion of balanced covariates
-    model.output[num_sim, 3] <- # need to add code to get the mean percent balance improvement
+    balance_table_full <- bal.tab(psm_matchit, thresholds = .1)
+    balance_table_full$Balanced.mean.diffs # not including distance, 5 of the 10 meet the balanced threshold
 
+    ATT[i] <- ps_att_summ$coefficients["college", "Estimate"]
+    balanced.cov[i] <- table(balance_table_full$Balance[-1, "M.Threshold"])["Balanced, <0.1"]/ncol(cov.rand) # remove distance variable 
+    balance.improvement[i] <- mean(psm_matchit.sum$reduction[-1,1]) # remove distance 
     
+  # 10 random covariate balance plots
+    if(i %in% rand.num){
+      model_name <- paste0("model_", i)
+        n <-  match(i, rand.num) # get new index for where model # is in list of 10 models to save to list
+        plot(summary(psm_matchit, main= paste("Balance plot for model ", i)))
+  }
 }
 
-# Plot ATT v. proportion
+# Histogram of ATTs from simulation
+ggplot() + 
+  geom_histogram(aes(x=ATT))
 
-# 10 random covariate balance plots (hint try gridExtra)
-# Note: ggplot objects are finnicky so ask for help if you're struggling to automatically create them; consider using functions!
+# Plot ATT v. proportion
+ggplot() + 
+geom_point(aes(x=ATT, y=balanced.cov))
+# add regesssion line
 ```
 
 ## Questions
@@ -271,33 +290,61 @@ for (sim_num in 1:10000) {
 Henderson/Chatfield propose using genetic matching to learn the best weights for Mahalanobis distance matching. Choose a matching algorithm other than the propensity score (you may use genetic matching if you wish, but it is also fine to use the greedy or optimal algorithms we covered in lab instead). Repeat the same steps as specified in Section 4.2 and answer the following questions:
 
 ```{r}
-# Remove post-treatment covariates
-
-
-
+## Full Optimal Mahalanobis Matching
 
 # Simulate random selection of features 10k+ times
-for (sim_num in 1:10000) {
 
-# Randomly select features
-dfSIM <- sample(df2, size = sample(1:ncol(df2)), replace=TRUE)
-df3 <- cbind(college, dfSIM)
+# Create empty vectors to populate ATTs, proportion of balanced covariates, and mean percent balance improvement
+ATT.optimal = rep(NA, nsim)
+balanced.cov.optimal = rep(NA, nsim)
+balance.improvement.optimal = rep(NA, nsim)
 
-# Fit  models and save ATTs, proportion of balanced covariates, and mean percent balance improvement
-model_matchit <- matchit(college ~ colnames(dfSIM),
-                        data = df3, 
+for (i in 1:nsim) {
+  
+  # Randomly select features
+    cov.rand <- sample(cov, size = sample(1:ncol(cov)), replace=FALSE)    
+
+  # Fit p-score models
+    optimal.model <- paste("college ~", paste(names(cov.rand), collapse=" + "))
+    optimal_matchit <- matchit(formula(ps.model),
+                        data = ypsps, 
+                        method="full", 
+                        distance="mahalanobis",
                         estimand = "ATT",
                         replace = TRUE)
+    
+    optimal_matchit.sum <- summary(optimal_matchit)
+
+  # Save ATTs, proportion of balanced covariates, and mean percent balance improvement
+    optimal_att_data <- match.data(optimal_matchit)
+    outcome.model <- paste("student_ppnscal ~ college +", paste(names(cov.rand), collapse=" + "))
+  optimal_att <- lm(formula(outcome.model), data = optimal_att_data, weights = weights)
+    optimal_att_summ <- summary(optimal_att)
+
+    balance_table_full <- bal.tab(optimal_matchit, thresholds = .1)
+    balance_table_full$Balanced.mean.diffs # not including distance, 5 of the 10 meet the balanced threshold
+
+    ATT.optimal[i] <- optimal_att_summ$coefficients["college", "Estimate"]
+    balanced.cov.optimal[i] <- table(balance_table_full$Balance[-1, "M.Threshold"])["Balanced, <0.1"]/ncol(cov.rand) # remove distance variable 
+    balance.improvement.optimal[i] <- mean(optimal_matchit.sum$reduction[-1,1]) # remove distance 
+    
+  # 10 random covariate balance plots
+    if(i %in% rand.num){
+      model_name <- paste0("model_", i)
+        n <-  match(i, rand.num) # get new index for where model # is in list of 10 models to save to list
+        plot(summary(optimal_matchit, main= paste("Balance plot for model ", i)))
+  }
 }
 
+# Histogram of ATTs from simulation
+ggplot() + 
+  geom_histogram(aes(x=ATT.optimal))
+
 # Plot ATT v. proportion
+ggplot() + 
+geom_point(aes(x=ATT.optimal, y=balanced.cov.optimal))
+# add regesssion line
 
-# 10 random covariate balance plots (hint try gridExtra)
-# Note: ggplot objects are finnicky so ask for help if you're struggling to automatically create them; consider using functions!
-```
-
-```{r}
-# Visualization for distributions of percent improvement
 ```
 
 ## Questions
