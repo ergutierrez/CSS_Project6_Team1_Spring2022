@@ -69,7 +69,7 @@ ggplot(temp_df) +
      xlab("Student Donations")
 
 # Simulate this 10,000 times (monte carlo simulation - see R Refresher for a hint)
-nsim = 10000
+nsim = 1000
 
 prop.treat1.list <- rep(NA, nsim)  # create empty vector to append distributions across simulations - covariate=1
 prop.treat0.list <- rep(NA, nsim)  # create empty vector to append distributions across simulations  - covariate=0
@@ -142,56 +142,6 @@ balance_table_full <- bal.tab(model_matchit, thresholds = .1)
 balance_table_full
 table(balance_table_full$Balance[-1, "M.Threshold"])["Balanced, <0.1"]  # 5 out of 10
 
-# KQ said we don't need to include these graphs, just the one above. So we can probably delete
-ggplot(df, aes(x = student_GPA, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) +
-  labs(title = "Distribution of Student GPA among Treated and Untreated", fill = "A\n")
-
-ggplot(df, aes(x = student_Knowledge, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) +
-  labs(title = "Distribution of Student Knowledge among Treated and Untreated", fill = "A\n")
-
-ggplot(df, aes(x = student_NextSch, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) +
-  labs(title = "Distribution of Student Next School Year Plans among Treated and Untreated", fill = "A\n")
-
-ggplot(df, aes(x = student_SchClub, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) +
-  labs(title = "Distribution of Student Attendance to School Clubs among Treated and Untreated", fill = "A\n")
-
-ggplot(df, aes(x = student_Newspaper, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) + 
-  labs(title = "Distribution of student_Newspaper among Treated and Untreated", fill = "A\n")
-
-ggplot(df, aes(x = parent_EducHH, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) + 
-  labs(title = "Distribution of Parents' Household Education Level among Treated and Untreated", fill = "A\n")
-
-ggplot(df, aes(x = parent_Employ, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) +
-  labs(title = "Distribution of Parental Employment among Treated and Untreated", fill = "A\n")
-
-ggplot(df, aes(x = parent_Knowledge, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) + 
-  labs(title = "Distribution of Parental Knowledge among Treated and Untreated", fill = "A\n")
-
-ggplot(df, aes(x = parent_HHInc, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) +
-  labs(title = "Distribution of Parents' Household Income among Treated and Untreated", fill = "A\n")
-
-ggplot(df, aes(x = parent_Newspaper, fill = factor(college))) + 
-  geom_bar() +
-  facet_grid(college~.) +
-  labs(title = "Distribution of parent_Newspaper among Treated and Untreated", fill = "A\n")
 ```
 
 ## Simulations
