@@ -56,17 +56,16 @@ rdm_vtr <- sample(0:1, size = nrow(ypsps), replace = TRUE, prob = c(0.5,0.5))
 
 # Choose a baseline covariate
 temp_df <-  ypsps %>% 
-  select(student_money) %>% ## 1 = college and 0 = no college
-  mutate(random_assignment = rdm_vtr) %>% 
-  group_by(student_money, random_assignment)
+  select(student_Gen) %>% ## 1 = college and 0 = no college
+  mutate(random_assignment = rdm_vtr)
 
 # Visualize the distribution by treatment/control (ggplot)
 ggplot(temp_df) +
-  geom_bar(aes(x=student_money, 
+  geom_bar(aes(x=student_Gen, 
                   fill = factor(random_assignment)),
        position = 'dodge') +
-      labs(title = "Distribution of Student Donations", fill = "Random \nassignment\n") +
-     xlab("Student Donations")
+      labs(title = "Distribution of Student Gen", fill = "Random \nassignment\n") +
+     xlab("Student Gen")
 
 # Simulate this 10,000 times (monte carlo simulation - see R Refresher for a hint)
 nsim = 1000
@@ -81,13 +80,13 @@ for (iter_num in 1:nsim) {  # create for loop to repeat the three steps above
    
   # Create temp df that keeps covariate (student_money) and adds random vector from above
    temp_df <-  ypsps %>% 
-     select(student_money) %>% ## 1 = college and 0 = no college
+     select(student_Gen) %>% ## 1 = college and 0 = no college
      mutate(random_assignment = rdm_vtr)
   
    # Calculate proportion treated when covariate = 1 and when covariate = 0 
-   prop.treat1 <- (temp_df %>% filter(student_money==1 & random_assignment==1) %>% nrow())/(temp_df %>% filter(student_money==1) %>% nrow())
+   prop.treat1 <- (temp_df %>% filter(student_Gen==1 & random_assignment==1) %>% nrow())/(temp_df %>% filter(student_Gen==1) %>% nrow())
    
-   prop.treat0 <- (temp_df %>% filter(student_money==0 & random_assignment==1) %>% nrow())/(temp_df %>% filter(student_money==0) %>% nrow())
+   prop.treat0 <- (temp_df %>% filter(student_Gen==0 & random_assignment==1) %>% nrow())/(temp_df %>% filter(student_Gen==0) %>% nrow())
 
   # Save proportions in list
   prop.treat1.list[iter_num] <- prop.treat1
