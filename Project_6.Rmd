@@ -292,7 +292,7 @@ ggplot() +
 # Plot ATT v. proportion
 ggplot() + 
 geom_point(aes(x=ATT.optimal, y=balanced.cov.optimal))
-# add regesssion line
+# add regression line
 
 ```
 
