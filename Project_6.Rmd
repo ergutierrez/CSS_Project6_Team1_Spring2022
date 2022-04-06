@@ -20,7 +20,7 @@ The data is drawn from the \href{https://www.icpsr.umich.edu/web/ICPSR/studies/4
 
 Otherwise, we also have covariates measured for survey responses to various questions about political attitudes. We have covariates measured for the students in the baseline year, covariates for their parents in the baseline year, and covariates from follow-up surveys. \textbf{Be careful here}. In general, post-treatment covariates will be clear from the name (i.e. student\_1973Married indicates whether the student was married in the 1973 survey). Be mindful that the baseline covariates were all measured in 1965, the treatment occurred between 1965 and 1973, and the outcomes are from 1973 and beyond. We will distribute the Appendix from Henderson and Chatfield that describes the covariates they used, but please reach out with any questions if you have questions about what a particular variable means.
 
-```{r}
+```{r, warning=F}
 # Load tidyverse and MatchIt
 # Feel free to load other libraries as you wish
 library(tidyverse)
@@ -46,7 +46,7 @@ Matching is usually used in observational studies to to approximate random assig
     \item Simulate the first 3 steps 10,000 times and visualize the distribution of treatment/control balance across the simulations.
 \end{enumerate}
 
-```{r}
+```{r, warning=F}
 # Set seed
 set.seed(2459)
 
@@ -112,7 +112,7 @@ ggplot() +
 ## One Model
 Select covariates that you think best represent the "true" model predicting whether a student chooses to attend college, and estimate a propensity score model to calculate the Average Treatment Effect on the Treated (ATT). Plot the balance of the top 10 (or fewer if you select fewer covariates). Report the balance of the p-scores across both the treatment and control groups, and using a threshold of standardized mean difference of p-score $\leq .1$, report the number of covariates that meet that balance threshold.
 
-```{r}
+```{r, warning=F}
 # Select covariates that represent the "true" model for selection, fit model
 df <-  ypsps %>% 
   select(student_ppnscal, college, student_GPA, student_Knowledge, student_NextSch, student_SchClub, student_Newspaper, parent_EducHH, parent_Employ, parent_Knowledge, parent_HHInc, parent_Newspaper)
@@ -156,7 +156,7 @@ Henderson/Chatfield argue that an improperly specified propensity score model ca
 
 \textbf{Note: There are lots of post-treatment covariates in this dataset (about 50!)! You need to be careful not to include these in the pre-treatment balancing. Many of you are probably used to selecting or dropping columns manually, or positionally. However, you may not always have a convenient arrangement of columns, nor is it fun to type out 50 different column names. Instead see if you can use dplyr 1.0.0 functions to programatically drop post-treatment variables (\href{https://www.tidyverse.org/blog/2020/03/dplyr-1-0-0-select-rename-relocate/}{here} is a useful tutorial).}
 
-```{r}
+```{r, warning=F}
 # Simulate random selection of features 10k+ times
 
 # Drop columns with missing values
@@ -238,7 +238,7 @@ geom_point(aes(x=ATT, y=balanced.cov))
 
 Henderson/Chatfield propose using genetic matching to learn the best weights for Mahalanobis distance matching. Choose a matching algorithm other than the propensity score (you may use genetic matching if you wish, but it is also fine to use the greedy or optimal algorithms we covered in lab instead). Repeat the same steps as specified in Section 4.2 and answer the following questions:
 
-```{r}
+```{r, warning=F}
 ## Full Optimal Mahalanobis Matching
 
 # Simulate random selection of features 10k+ times
