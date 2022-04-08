@@ -217,8 +217,10 @@ ggplot() +
 
 # Plot ATT v. proportion
 ggplot() + 
-geom_point(aes(x=ATT, y=balanced.cov))
-# add regesssion line
+geom_point(aes(x=ATT, y=balanced.cov)) +
+geom_smooth(method = "lm", se = FALSE)
+
+
 ```
 
 ## Questions
@@ -291,8 +293,15 @@ ggplot() +
 
 # Plot ATT v. proportion
 ggplot() + 
-geom_point(aes(x=ATT.optimal, y=balanced.cov.optimal))
-# add regression line
+geom_point(aes(x=ATT.optimal, y=balanced.cov.optimal))+
+geom_smooth(method = "lm", se = FALSE)
+
+# Plot Distribution of Balance Improvement for the PS and Alternative Models
+ggplot() + 
+  geom_histogram(aes(x=balance.improvement))
+
+ggplot() + 
+  geom_histogram(aes(x=balance.improvement.optimal))
 
 ```
 
