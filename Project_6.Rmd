@@ -227,11 +227,11 @@ geom_smooth(method = "lm", se = FALSE)
 
 \begin{enumerate}
     \item \textbf{How many simulations resulted in models with a higher proportion of balanced covariates? Do you have any concerns about this?}
-    \item \textbf{Your Answer}:
+    \item \textbf{Your Answer:} Looking at the scatterplot of the proportion of balanced covariates and ATTs, it seems like more than half of the models have a balanced covariates proportion higher than 0.5. Because the distribution of balance is wide across samples and models of the simulation, this creates concerns around sample-specific estimates. Even when we choose a model with high balance, problems of generalizability arise due to the estimates being sample and model specific.
     \item \textbf{Analyze the distribution of the ATTs. Do you have any concerns about this distribution?}
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} The ATTs from simulations have a bimodal distribution. Combining the scatterplot and the ATT histogram, one can argue that the proportion of balanced covariates is correlated with the magnitude of ATT: lower proportion of balanced covariates is associated with near-zero ATT, while higher proportion of balanced covariates is associated with higher ATT. This becomes a concern because our propensity score models result in sample-specific estimates of ATT. 
     \item \textbf{Do your 10 randomly chosen covariate balance plots produce similar numbers on the same covariates? Is it a concern if they do not?}
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} The 10 randomly chosen balance plots do not produce similar numbers or identical balanced covariates. For the same reasons as mentioned above, this suggests sample-specific models and estimates of propensity score models and is a disadvantage. Conversely, in the alternative model, there is a significant overlap in the number of balanced covariates as well as the covariates themselves. However, the balance is overall pretty low.
 \end{enumerate}
 
 # Matching Algorithm of Your Choice
@@ -309,9 +309,9 @@ ggplot() +
 
 \begin{enumerate}
     \item \textbf{Does your alternative matching method have more runs with higher proportions of balanced covariates?}
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} Looking at the scatterplot of the proportion of balanced covariates and ATTs of the alternative matching method, it seems like the majority of models have less than 3 balanced covariates. This suggests balance overall is worse in the alternative models compared to propensity score models in this case.
     \item \textbf{Use a visualization to examine the change in the distribution of the percent improvement in balance in propensity score matching vs. the distribution of the percent improvement in balance in your new method. Which did better? Analyze the results in 1-2 sentences.}
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} ...
 \end{enumerate}
 
 
@@ -321,7 +321,7 @@ ggplot() +
 
 \begin{enumerate}
     \item Why might it be a good idea to do matching even if we have a randomized or as-if-random design?
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} Matching is a solution to the problem of sparseness. In real world, although we have a randomized design, it is impossible to make sure that the units are identical in all possible relevant characteristics except treatment status. That’s why including probability of treatment based on measured characteristics in estimation makes sense.
     \item The standard way of estimating the propensity score is using a logistic regression to estimate probability of treatment. Given what we know about the curse of dimensionality, do you think there might be advantages to using other machine learning algorithms (decision trees, bagging/boosting forests, ensembles, etc.) to estimate propensity scores instead?
-    \item \textbf{Your Answer:}
+    \item \textbf{Your Answer:} As machine learning algorithms are more complex combinations of simpler models such as logistic regression, there might be benefits to estimating propensity scores using the mentioned models as long as there are enough units of observation for accurate machine learning predictions.
 \end{enumerate}
